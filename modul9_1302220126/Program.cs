@@ -1,36 +1,104 @@
+using NSwag.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
+using Model.mahasiswa;
+using Microsoft.AspNetCore.Builder;
+using modul9_1302220126;
 
-namespace modul9_1302220126
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddDbContext<Mahasiswadb>(opt => opt.UseInMemoryDatabase("mahasiswa"));
+builder.Services.AddOpenApiDocument(config =>
 {
-    public class Program
+    config.DocumentName = "TodoAPI";
+    config.Title = "TodoAPI v1";
+    config.Version = "v1";
+});
+
+var app = builder.Build();
+
+// configure swagger tutorial di https://learn.microsoft.com/en-us/aspnet/core/tutorials/min-web-api?view=aspnetcore-6.0&tabs=visual-studio-code
+if (app.Environment.IsDevelopment())
+{
+    app.UseOpenApi();
+    app.UseSwaggerUi(config =>
     {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
-
-            // Add services to the container.
-
-            builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-
-            var app = builder.Build();
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
-            app.Run();
-        }
-    }
+        config.DocumentTitle = "TodoAPI";
+        config.Path = "/swagger";
+        config.DocumentPath = "/swagger/{documentName}/swagger.json";
+        config.DocExpansion = "list";
+    });
 }
+
+app.MapGet("/", async (Mahasiswadb db) =>
+{
+    // default data using array list 
+    var mhs = new Mahasiswa[]
+    {
+        new Mahasiswa { Id = 1, Nama = "Syauqi Dhiya Ulhaq", Nim = "1302223137" },
+        new Mahasiswa { Id = 2, Nama = "Ricky Renaldi", Nim = "1302223044" },
+        new Mahasiswa { Id = 3, Nama = "Nicholas Robinson", Nim = "1302223064" },
+        new Mahasiswa { Id = 4, Nama = "M Tsaqif Zayyan", Nim = "1302220130" },
+        new Mahasiswa { Id = 5, Nama = "M Arifin Ilham", Nim = "1302223050" },
+        new Mahasiswa { Id = 6, Nama = "Rafie Aydin Ihsan", Nim = "1302220054" },
+    };
+    db.mhs.AddRange(mhs);
+    await db.SaveChangesAsync();
+    // dari aspnetcore.httml
+    return Results.Redirect("/swagger"); // redirect to swagger
+});
+
+app.MapGet("/mahasiswa", async (Mahasiswadb db) =>
+{
+    return Results.Ok(await db.mhs.ToListAsync());
+});
+
+app.MapGet("/mahasiswa/{id}", async (Mahasiswadb db, int id) =>
+{
+    var mhs = await db.mhs.FindAsync(id);
+    if (mhs == null)
+    {
+        return Results.NotFound();
+    }
+    return Results.Ok(mhs);
+});
+
+app.MapPost("/mahasiswa", async (Mahasiswadb db, Mahasiswa mhs) =>
+{
+    Console.WriteLine(mhs);
+    db.mhs.Add(mhs);
+    await db.SaveChangesAsync();
+    return Results.Created($"/mahasiswa/{mhs.Id}", mhs);
+});
+
+app.MapPut("/mahasiswa/{id}", async (Mahasiswadb db, int id, Mahasiswa mhs) =>
+{
+    if (id != mhs.Id)
+    {
+        return Results.BadRequest();
+    }
+    db.Entry(mhs).State = EntityState.Modified;
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+app.MapDelete("/mahasiswa/{id}", async (Mahasiswadb db, int id) =>
+{
+    var mhs = await db.mhs.FindAsync(id);
+    if (mhs == null)
+    {
+        return Results.NotFound();
+    }
+    db.mhs.Remove(mhs);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+
+
+
+
+
+
+app.Run();
